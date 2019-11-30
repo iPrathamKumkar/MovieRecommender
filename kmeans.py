@@ -1,7 +1,7 @@
 import pandas as pd
 from sklearn.cluster import KMeans
-
 import matplotlib.pyplot as plt
+
 import numpy as np
 from scipy.sparse import csr_matrix
 
@@ -42,10 +42,23 @@ zip_strings = ['T8H1N','V3N4P','L9G2B','E2A4H','V0R2M','Y1A6B','V5A2B','M7A1A','
 users = users[~users['zip_code'].isin(zip_strings)]
 
 users['zip_code'] = pd.to_numeric(users['zip_code'])
-normalized_users = users.copy()
+normalized_users = users[['age', 'sex', 'occupation', 'zip_code']].copy()
 for feature_name in users.columns:
     if feature_name != 'user_id':
         max_value = users[feature_name].max()
         min_value = users[feature_name].min()
         normalized_users[feature_name] = (users[feature_name] - min_value) / (max_value - min_value)
+
+X = normalized_users
+distorsions = []
+for k in range(2, 20):
+    kmeans = KMeans(n_clusters=k)
+    kmeans.fit(X)
+    distorsions.append(kmeans.inertia_)
+
+fig = plt.figure(figsize=(15, 5))
+plt.plot(range(2, 20), distorsions)
+plt.grid(True)
+plt.title('Elbow curve')
+plt.show()
 
