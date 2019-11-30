@@ -1,5 +1,6 @@
 import pandas as pd
-from sklearn import preprocessing
+from sklearn.cluster import KMeans
+
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.sparse import csr_matrix
@@ -45,7 +46,6 @@ normalized_users = users.copy()
 for feature_name in users.columns:
     if feature_name != 'user_id':
         max_value = users[feature_name].max()
-        print(type(max_value))
         min_value = users[feature_name].min()
         normalized_users[feature_name] = (users[feature_name] - min_value) / (max_value - min_value)
 
