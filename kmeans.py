@@ -42,23 +42,74 @@ zip_strings = ['T8H1N','V3N4P','L9G2B','E2A4H','V0R2M','Y1A6B','V5A2B','M7A1A','
 users = users[~users['zip_code'].isin(zip_strings)]
 
 users['zip_code'] = pd.to_numeric(users['zip_code'])
-normalized_users = users[['age', 'sex', 'occupation', 'zip_code']].copy()
+normalized_users = users.copy()
 for feature_name in users.columns:
     if feature_name != 'user_id':
         max_value = users[feature_name].max()
         min_value = users[feature_name].min()
         normalized_users[feature_name] = (users[feature_name] - min_value) / (max_value - min_value)
 
-X = normalized_users
-distorsions = []
-for k in range(2, 20):
-    kmeans = KMeans(n_clusters=k)
-    kmeans.fit(X)
-    distorsions.append(kmeans.inertia_)
+# X = normalized_users
+# distorsions = []
+# for k in range(2, 20):
+#     kmeans = KMeans(n_clusters=k)
+#     kmeans.fit(X)
+#     distorsions.append(kmeans.inertia_)
 
-fig = plt.figure(figsize=(15, 5))
-plt.plot(range(2, 20), distorsions)
-plt.grid(True)
-plt.title('Elbow curve')
-plt.show()
+# fig = plt.figure(figsize=(15, 5))
+# plt.plot(range(2, 20), distorsions)
+# plt.grid(True)
+# plt.title('Elbow curve')
+# plt.show()
+
+users_ratings = pd.merge(normalized_users, ratings)
+
+u_train = normalized_users[normalized_users['user_id'] <= 848].drop(columns = 'user_id')
+u_test = normalized_users[normalized_users['user_id'] > 848].drop(columns = 'user_id')
+
+r_train = ratings[ratings['user_id'] <= 848]
+r_test = ratings[ratings['user_id'] > 848]
+
+kmeans = KMeans(n_clusters=7, random_state=0).fit(u_train)
+# print('labels',labels)
+labels = kmeans.labels_
+age = int(input("Enter your age: "))
+sex = input("Enter your sex (M/F): ")
+if sex == 'M':
+    sex = int(1)
+else:
+    sex = int(0)
+
+def get_salary(occ):
+    salary = {"administrator": 45000, "doctor": 169000}
+    return salary[occ]
+
+
+occupation = input("Enter your occupation: ")
+occupation = get_salary(occupation)
+zip_code = int(input("Enter your zip code: "))
+
+new_user = pd.DataFrame({"user_id":[users['user_id'].max()+2], "age":[(age-users['age'].min())/(users['age'].max()- users['age'].min())], "sex":[sex], "occupation":[(occupation-users['occupation'].min())/(users['occupation'].max()- users['occupation'].min())], "zip_code":[(zip_code-users['zip_code'].min())/(users['zip_code'].max()- users['zip_code'].min())]})
+
+predicted_label = kmeans.predict(new_user.drop(columns = 'user_id'))
+print(predicted_label)
+print('centers', kmeans.cluster_centers_)
+
+# for label in kmeans.labels_:
+#     if predicted_label == label:
+
+# mean = ratings.groupby(['user_id'], as_index=False, sort=False).mean().rename(columns={"rating":"mean_rating"})
+# ratings = pd.merge(ratings, mean, on = "user_id", how = "left", sort="False")
+# ratings['adjusted_ratings'] = ratings['rating']-ratings['mean_rating']
+
+print('labels',kmeans.labels_)
+cluster_users = []
+
+cluster_ratings = ratings.drop(columns='unix_timestamp')
+for i in range(len(kmeans.labels_)):
+    if kmeans.labels_[i] in predicted_label:
+        cluster_users.append(i+1)
+
+print(cluster_users)
+
 
