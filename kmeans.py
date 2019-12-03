@@ -108,8 +108,13 @@ cluster_users = []
 cluster_ratings = ratings.drop(columns='unix_timestamp')
 for i in range(len(kmeans.labels_)):
     if kmeans.labels_[i] in predicted_label:
-        cluster_users.append(i+1)
+        cluster_users.append(float(i+1))
 
 print(cluster_users)
 
-
+cluster_ratings = cluster_ratings[cluster_ratings['user_id'].isin(cluster_users)]
+cluster_ratings = cluster_ratings.groupby('movie_id').filter(lambda x : len(x) > 10)
+new_ratings = cluster_ratings.groupby('movie_id', as_index=False)['rating'].mean()
+recommend = new_ratings.sort_values(by=['rating'], ascending=False).head(5)
+#
+recommend = pd.merge(recommend, movies)
