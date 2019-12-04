@@ -81,7 +81,10 @@ else:
     sex = int(0)
 
 def get_salary(occ):
-    salary = {"administrator": 45000, "doctor": 169000}
+    salary = {"administrator": 45000, "doctor": 169000, "artist": 44000, "educator": 64000, "engineer": 71000, "entertainment": 58000,
+              "executive": 75000, "healthcare": 65000, "homemaker": 19000, "lawyer":81000, "librarian": 49000, "marketing": 62000,
+              "none": 0, "other": 0, "programmer": 61000, "retired":16000,"salesman": 30000, "scientist": 77000, "student": 4000,
+              "technician": 42000, "writer": 57000}
     return salary[occ]
 
 
@@ -118,3 +121,5 @@ new_ratings = cluster_ratings.groupby('movie_id', as_index=False)['rating'].mean
 recommend = new_ratings.sort_values(by=['rating'], ascending=False).head(5)
 #
 recommend = pd.merge(recommend, movies)
+recommend = recommend.drop(columns=['release_date','video_release_date','imdb_url'])
+print(recommend.head(10))
