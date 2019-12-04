@@ -3,6 +3,11 @@ from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 
 import numpy as np
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_error
+
+from math import sqrt
+
 from scipy.sparse import csr_matrix
 
 u_cols = ['user_id', 'age', 'sex', 'occupation', 'zip_code']
@@ -49,18 +54,17 @@ for feature_name in users.columns:
         min_value = users[feature_name].min()
         normalized_users[feature_name] = (users[feature_name] - min_value) / (max_value - min_value)
 
-# X = normalized_users
-# distorsions = []
-# for k in range(2, 20):
-#     kmeans = KMeans(n_clusters=k)
-#     kmeans.fit(X)
-#     distorsions.append(kmeans.inertia_)
+X = normalized_users
+distorsions = []
+for k in range(2, 20):
+    kmeans = KMeans(n_clusters=k)
+    kmeans.fit(X)
+    distorsions.append(kmeans.inertia_)
 
-# fig = plt.figure(figsize=(15, 5))
-# plt.plot(range(2, 20), distorsions)
-# plt.grid(True)
-# plt.title('Elbow curve')
-# plt.show()
+fig = plt.figure(figsize=(15, 5))
+plt.plot(range(2, 20), distorsions)
+plt.grid(True)
+plt.title('Elbow curve')
 
 users_ratings = pd.merge(normalized_users, ratings)
 
@@ -71,18 +75,46 @@ r_train = ratings[ratings['user_id'] <= 848]
 r_test = ratings[ratings['user_id'] > 848]
 
 kmeans = KMeans(n_clusters=7, random_state=0).fit(u_train)
-# print('labels',labels)
-labels = kmeans.labels_
+test_labels = kmeans.predict(u_test)
+
+rmse = []
+mae = []
+
+for cluster_number in np.unique(test_labels):
+    cluster_users = []
+
+    cluster_ratings = r_test.drop(columns='unix_timestamp')
+    for i in range(len(test_labels)):
+        if test_labels[i] == cluster_number:
+            cluster_users.append(float(849 + i))
+    cluster_ratings = cluster_ratings[cluster_ratings['user_id'].isin(cluster_users)]
+    new_ratings = cluster_ratings.groupby('movie_id', as_index=False)['rating'].mean().rename(columns={"rating":"mean_rating"})
+    final_ratings = pd.merge(cluster_ratings, new_ratings, on=['movie_id'])
+    rmse.append(sqrt(mean_squared_error(final_ratings['rating'], final_ratings['mean_rating'])))
+    mae.append(mean_absolute_error(final_ratings['rating'], final_ratings['mean_rating']))
+print("Cluster\tRMSE\t\t\tMAE")
+for i in range(len(rmse)):
+    print(i,"\t",rmse[i],"\t",mae[i])
+
+
+def get_salary(occ):
+    salary = {"administrator": 45000, "doctor": 169000, "artist": 44000, "educator": 64000, "engineer": 71000,
+              "entertainment": 58000,
+              "executive": 75000, "healthcare": 65000, "homemaker": 19000, "lawyer": 81000, "librarian": 49000,
+              "marketing": 62000,
+              "none": 0, "other": 0, "programmer": 61000, "retired": 16000, "salesman": 30000, "scientist": 77000,
+              "student": 4000,
+              "technician": 42000, "writer": 57000}
+    return salary[occ]
+
+
 age = int(input("Enter your age: "))
 sex = input("Enter your sex (M/F): ")
+
 if sex == 'M':
     sex = int(1)
 else:
     sex = int(0)
-
-def get_salary(occ):
-    salary = {"administrator": 45000, "doctor": 169000}
-    return salary[occ]
 
 
 occupation = input("Enter your occupation: ")
@@ -92,17 +124,7 @@ zip_code = int(input("Enter your zip code: "))
 new_user = pd.DataFrame({"user_id":[users['user_id'].max()+2], "age":[(age-users['age'].min())/(users['age'].max()- users['age'].min())], "sex":[sex], "occupation":[(occupation-users['occupation'].min())/(users['occupation'].max()- users['occupation'].min())], "zip_code":[(zip_code-users['zip_code'].min())/(users['zip_code'].max()- users['zip_code'].min())]})
 
 predicted_label = kmeans.predict(new_user.drop(columns = 'user_id'))
-print(predicted_label)
-print('centers', kmeans.cluster_centers_)
 
-# for label in kmeans.labels_:
-#     if predicted_label == label:
-
-# mean = ratings.groupby(['user_id'], as_index=False, sort=False).mean().rename(columns={"rating":"mean_rating"})
-# ratings = pd.merge(ratings, mean, on = "user_id", how = "left", sort="False")
-# ratings['adjusted_ratings'] = ratings['rating']-ratings['mean_rating']
-
-print('labels',kmeans.labels_)
 cluster_users = []
 
 cluster_ratings = ratings.drop(columns='unix_timestamp')
@@ -110,11 +132,9 @@ for i in range(len(kmeans.labels_)):
     if kmeans.labels_[i] in predicted_label:
         cluster_users.append(float(i+1))
 
-print(cluster_users)
-
 cluster_ratings = cluster_ratings[cluster_ratings['user_id'].isin(cluster_users)]
 cluster_ratings = cluster_ratings.groupby('movie_id').filter(lambda x : len(x) > 10)
 new_ratings = cluster_ratings.groupby('movie_id', as_index=False)['rating'].mean()
 recommend = new_ratings.sort_values(by=['rating'], ascending=False).head(5)
-#
+
 recommend = pd.merge(recommend, movies)
